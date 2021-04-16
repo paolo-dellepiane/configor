@@ -256,8 +256,8 @@ func (configor *Configor) processTags(config interface{}, prefixes ...string) er
 		}
 
 		if envName == "" {
-			envNames = append(envNames, strings.Join(append(prefixes, fieldStruct.Name), "_"))                  // Configor_DB_Name
-			envNames = append(envNames, strings.ToUpper(strings.Join(append(prefixes, fieldStruct.Name), "_"))) // CONFIGOR_DB_NAME
+			envNames = append(envNames, strings.Join(append(prefixes, fieldStruct.Name), "__"))                  // Configor_DB_Name
+			envNames = append(envNames, strings.ToUpper(strings.Join(append(prefixes, fieldStruct.Name), "__"))) // CONFIGOR_DB_NAME
 		} else {
 			envNames = []string{envName}
 		}
@@ -337,6 +337,24 @@ func (configor *Configor) processTags(config interface{}, prefixes ...string) er
 						}
 					}
 				}(field, fieldStruct)
+			}
+		}
+
+		if field.Kind() == reflect.Map {
+			mapValue := reflect.Indirect(field)
+			if field.IsNil() {
+				mapType := reflect.MapOf(reflect.TypeOf(""), reflect.TypeOf(""))
+				mapValue = reflect.MakeMap(mapType)
+				field.Set(mapValue)
+			}
+			for _, e := range os.Environ() {
+				for _, env := range envNames {
+					if strings.HasPrefix(e, env) {
+						keyval := strings.Split(e, "=")
+						k, v := strings.Replace(keyval[0], env+"__", "", 1), keyval[1]
+						mapValue.SetMapIndex(reflect.ValueOf(k), reflect.ValueOf(v))
+					}
+				}
 			}
 		}
 	}
